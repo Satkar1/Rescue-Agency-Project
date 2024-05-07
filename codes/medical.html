@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rescue Agencies</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Add styles for header, footer, and other elements as needed */
+
+        .Medical {
+            padding: 20px;
+        }
+
+        .Medical h2 {
+            margin-bottom: 10px;
+        }
+
+        .hospital-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .hospital-list li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .hospital-list li button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Rescue Agencies</h1>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About</a></li>
+            <li><a href="agency.html" class="active">Agencies</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="signup.html">Sign Up</a></li>
+        </ul>
+    </nav>
+    <section class="Medical information">
+        <h2>Nearby Hospitals</h2>
+        <button onclick="findNearestHospital()">Find Nearest Hospital</button>
+        <ul id="hospital-list" class="hospital-list">
+            <!-- Hospital list will be displayed here -->
+            <?php
+            // Fetch hospital data from the database and dynamically generate HTML for each hospital
+            $hospital_query = mysqli_query($conn, "SELECT * FROM hospitals");
+            while($hospital_row = mysqli_fetch_assoc($hospital_query))
+            {
+            echo '<li data-hospital-id="' . $hospital_row['id'] . '">';
+            echo $hospital_row['name'] . ' - ' . $hospital_row['distance'] . ' km';
+            echo '<button onclick="sendAlert(this)">Alert</button>';
+            echo '</li>';
+            }
+            ?>
+        </ul>
+    </section>
+    <footer>
+        <p>&copy; 2024 Rescue Agency Locator</p>
+    </footer>
+
+    <script>
+        var hospitalsData;
+
+        function findNearestHospital() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showNearestHospital);
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        function showNearestHospital(position) {
+            var userLatitude = position.coords.latitude;
+            var userLongitude = position.coords.longitude;
+
+            fetch('get_hospital_locations.php')
+                .then(response => response.json())
+                .then(data => {
+                    hospitalsData = data;
+
+                    // Calculate distances for each hospital
+                    hospitalsData.forEach(hospital => {
+                        hospital.distance = calculateDistance(userLatitude, userLongitude, hospital.latitude, hospital.longitude);
+                    });
+
+                    // Sort hospitals based on distances
+                    hospitalsData.sort((a, b) => a.distance - b.distance);
+
+                    // Display the sorted hospital list
+                    var hospitalList = document.getElementById('hospital-list');
+                    hospitalList.innerHTML = '';
+                    hospitalsData.forEach((hospital, index) => {
+                        var listItem = document.createElement('li');
+                        listItem.textContent = hospital.name + ' - ' + hospital.distance.toFixed(2) + ' km';
+
+                        var alertButton = document.createElement('button');
+                        alertButton.textContent = 'Alert';
+                        alertButton.onclick = () => alert(`Alert for ${hospital.name}`);
+
+                        listItem.appendChild(alertButton);
+
+                        listItem.setAttribute('data-index', index);
+                        listItem.onclick = showHospitalOnMap;
+                        hospitalList.appendChild(listItem);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching hospital locations:', error);
+                });
+        }
+
+        function showHospitalOnMap(event) {
+            var index = event.target.getAttribute('data-index');
+            var selectedHospital = hospitalsData[index];
+            var userLatitude, userLongitude;
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    userLatitude = position.coords.latitude;
+                    userLongitude = position.coords.longitude;
+
+                    var url = `https://www.google.com/maps/dir/${userLatitude},${userLongitude}/${selectedHospital.latitude},${selectedHospital.longitude}`;
+                    window.open(url, '_blank');
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            var R = 6371; // Radius of the earth in km
+            var dLat = deg2rad(lat2 - lat1);
+            var dLon = deg2rad(lon2 - lon1);
+            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            var d = R * c; // Distance in km
+            return d;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180)
+        }
+    </script>
+</body>
+</html>
