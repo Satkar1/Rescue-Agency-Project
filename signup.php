@@ -20,7 +20,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST['password'];
 
     // SQL to insert data into database
-    $sql = "INSERT INTO user (username, email, password) VALUES ('$username', '$email', '$password')";
+    $sql = "INSERT INTO users (username, email, password)
+    VALUES ('$username', '$email', '$password')";
 
     if ($conn->query($sql) === TRUE) {
         // Return success response
